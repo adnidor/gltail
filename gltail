@@ -1,0 +1,107 @@
+#!/usr/bin/python3
+import requests
+from pprint import pprint
+import re
+import datetime
+from time import sleep
+import sys
+import configparser
+import argparse
+
+CONFIG_FILE = "/home/yannik/.config/gltail.conf"
+DATE_FORMAT_STRING = "%Y-%m-%dT%H:%M:%S.%fZ"
+
+def search(query,time,amount):
+    endpoint = "/api/search/universal/relative"
+    parameters = {"query":query,"range":time,"limit":amount}
+    response = requests.get(base_url+endpoint,params=parameters,auth=auth, headers=headers)
+    response.raise_for_status()
+    response = response.json()
+    return response["messages"]
+
+def get_access_token(username,password):
+    import socket
+    token_name = "gltail_"+socket.gethostname()
+    endpoint = "/api/users/{}/tokens/{}".format(username,token_name)
+    response = requests.post(base_url+endpoint,auth=(username,password),headers=headers)
+    response.raise_for_status()
+    response = response.json()
+    return response["token"]
+
+try:
+    config = configparser.ConfigParser()
+    config.read(CONFIG_FILE)
+
+    access_token = config["gltail"].get("access_token",None)
+    hostname = config["gltail"]["hostname"]
+    port = config["gltail"]["port"]
+    secure = config["gltail"].getboolean("secure")
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('query',nargs='*',default=['*'])
+    parser.add_argument('-n','--limit',type=int,default=10)
+    parser.add_argument('--sleep',type=int,default=0)
+    parser.add_argument('--overlap',type=int,default=10)
+    parser.add_argument('-f','--follow',action='store_true')
+    parser.add_argument('--show-message-id',action='store_true')
+    args = parser.parse_args()
+
+    sleep_sec = args.sleep
+    overlap_sec = args.overlap
+    init_burst = args.limit
+    follow = args.follow
+    query = " ".join(args.query)
+
+    scheme = "https" if secure else "http"
+    base_url = scheme+"://"+hostname+":"+str(port)
+    headers = {"Accept":"application/json"}
+
+    if access_token is None:
+        print("Creating access token...",file=sys.stderr)
+        config["gltail"]["access_token"] = get_access_token(config["gltail"]["username"],config["gltail"]["password"])
+        access_token = config["gltail"]["access_token"]
+        print("Created access token, writing to config...",file=sys.stderr)
+        del config["gltail"]["username"]
+        del config["gltail"]["password"]
+        with open(CONFIG_FILE,"w") as configfile:
+            config.write(configfile)
+
+    auth = (access_token, "token")
+
+    last_message = None
+
+    for message in reversed(search(query,0,init_burst)):
+        print(message["message"]["timestamp"]+": "+message["message"]["message"])
+        if args.show_message_id:
+            print(message["message"]["_id"]+": "+message["message"]["timestamp"]+": "+message["message"]["message"])
+        last_message = message["message"]["_id"]
+
+    if not follow:
+        exit(0)
+
+    # Assumptions made:
+    # - Messages are in chronologic order
+    # - the last message received from graylog is the last message received by graylog
+    # - message ids don't change
+    while True:
+        sleep(sleep_sec)
+        seen_last_message=False
+        messages = search(query,sleep_sec+overlap_sec,0)
+        if len(messages) == 0:
+            last_message = True
+            continue
+        for message in reversed(messages):
+            if not seen_last_message:
+                if message["message"]["_id"] == last_message or last_message is True:
+                    seen_last_message = True
+                continue
+            print(message["message"]["timestamp"]+": "+message["message"]["message"])
+            last_message = message["message"]["_id"]
+        if seen_last_message == False:
+            # should not happen, but does
+            print("too high/low volume",len(messages))
+            pprint(messages)
+            exit(1)
+
+except KeyboardInterrupt:
+    exit(0)
