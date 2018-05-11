@@ -7,8 +7,9 @@ from time import sleep
 import sys
 import configparser
 import argparse
+from os.path import expanduser
 
-CONFIG_FILE = "/home/yannik/.config/gltail.conf"
+CONFIG_FILE = expanduser("~/.config/gltail.conf")
 DATE_FORMAT_STRING = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 def search(query,time,amount):
