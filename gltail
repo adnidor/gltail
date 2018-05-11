@@ -71,9 +71,10 @@ try:
     last_message = None
 
     for message in reversed(search(query,0,init_burst)):
-        print(message["message"]["timestamp"]+": "+message["message"]["message"])
         if args.show_message_id:
             print(message["message"]["_id"]+": "+message["message"]["timestamp"]+": "+message["message"]["message"])
+        else:
+            print(message["message"]["timestamp"]+": "+message["message"]["message"])
         last_message = message["message"]["_id"]
 
     if not follow:
@@ -95,7 +96,10 @@ try:
                 if message["message"]["_id"] == last_message or last_message is True:
                     seen_last_message = True
                 continue
-            print(message["message"]["timestamp"]+": "+message["message"]["message"])
+            if args.show_message_id:
+                print(message["message"]["_id"]+": "+message["message"]["timestamp"]+": "+message["message"]["message"])
+            else:
+                print(message["message"]["timestamp"]+": "+message["message"]["message"])
             last_message = message["message"]["_id"]
         if seen_last_message == False:
             # should not happen, but does
