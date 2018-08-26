@@ -9,7 +9,7 @@ Create a config file in `~/.config/gltail.conf` containing
 ```
 [gltail]
 hostname = $your-hostname
-port = $your-port
+port = $your-port #optional, defaults to 9000
 secure = $do-you-use-https?
 ```
 
