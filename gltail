@@ -39,7 +39,7 @@ try:
 
     access_token = config["gltail"].get("access_token",None)
     hostname = config["gltail"]["hostname"]
-    port = config["gltail"]["port"]
+    port = config["gltail"].get("port","9000")
     secure = config["gltail"].getboolean("secure")
 
     parser = argparse.ArgumentParser()
