@@ -31,7 +31,11 @@ def get_access_token(username,password):
 
 try:
     config = configparser.ConfigParser()
-    config.read(CONFIG_FILE)
+    try:
+        config.read_file(open(CONFIG_FILE))
+    except IOError as e:
+        print("Error opening config file: {}".format(e), file=sys.stderr)
+        exit(1)
 
     access_token = config["gltail"].get("access_token",None)
     hostname = config["gltail"]["hostname"]
